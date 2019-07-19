@@ -8,6 +8,27 @@ import {
 } from 'react-native'
 import Animated from 'react-native-reanimated'
 import { State as GestureState } from 'react-native-gesture-handler'
+import * as core from '../ImagePicker/core'
+/**
+ * @typedef {0} IDLE
+ * @typedef {1} EXPANDING
+ * @typedef {2} COLLAPSING
+ * @typedef {IDLE | EXPANDING | COLLAPSING} ExpandedState
+ * @typedef {Object} ExpandedStates
+ * @property {IDLE} ExpandedStates.IDLE
+ * @property {EXPANDING} ExpandedStates.EXPANDING
+ * @property {COLLAPSING} ExpandedStates.COLLAPSING
+ * 
+ */
+/**
+ * @type {ExpandedStates}
+ * 
+ */
+export const EXPANDED_STATES = {
+  IDLE: 0,
+  EXPANDING: 1,
+  COLLAPSING: 2
+}
 
 const {
   set,
@@ -33,7 +54,8 @@ const {
   and,
   abs,
   max,
-  min
+  min,
+  debug
 } = Animated
 
 
@@ -78,8 +100,8 @@ export function runDecay(clock, position, velocity) {
 /**
  * 
  * @param {Animated.Clock} clock 
- * @param {Animated.Value} position 
- * @param {Animated.Value} value 
+ * @param {Animated.Value<number>} position 
+ * @param {Animated.Node<number>} value 
  */
 export function runSpring(clock, position, value) {
   const config = {
@@ -102,6 +124,37 @@ export function runSpring(clock, position, value) {
     ]),
     spring(clock, state, config),
     cond(state.finished, stopClock(clock)),
+    state.position
+  ])
+}
+
+/**
+ * 
+ * @param {Animated.Clock} clock 
+ * @param {Animated.Value<number>} position 
+ * @param {Animated.Node<number>} value 
+ */
+export function collapse(clock, position, value, expandedState) {
+  const config = {
+    damping: 28,
+    mass: 0.3,
+    stiffness: 188.296,
+    overshootClamping: false,
+    toValue: value,
+    restSpeedThreshold: 0.001,
+    restDisplacementThreshold: 0.001,
+  }
+
+  const state = initEmptyState()
+
+  return block([
+    cond(clockRunning(clock), 0, [
+      set(state.finished, 0),
+      set(state.position, position),
+      startClock(clock)
+    ]),
+    spring(clock, state, config),
+    cond(state.finished, [stopClock(clock), set(expandedState, EXPANDED_STATES.IDLE)]),
     state.position
   ])
 }
@@ -130,12 +183,12 @@ export function friction(value, maxFriction = 5, maxValue = 100) {
  * @param {Animated.Value<number>} start
  * @param {Animated.Value<number>} translation
  * @param {Animated.Value<number>} position
- * @param {number} pickerWidth
- * @param {number} containerWidth
+ * @param {Animated.Value<number>} pickerWidth
+ * @param {Animated.Value<number>} containerWidth
+ * @param {Animated.Node<number>} rightPoint
  */
-export function drag(start, translation, position, pickerWidth, containerWidth) {
+export function drag(start, translation, position, pickerWidth, containerWidth, rightPoint) {
 
-  const rightPoint = containerWidth < pickerWidth ? containerWidth - pickerWidth : 0
   const outOfBounds = or(
     lessThan(0, position),
     greaterThan(rightPoint, position)
@@ -172,16 +225,79 @@ export function drag(start, translation, position, pickerWidth, containerWidth) 
 }
 
 
+
+/**
+ * 
+ * @param {Animated.Clock} clock 
+ * @param {Animated.Node<number>} position 
+ * @param {Animated.Node<number>} target 
+ * @param {Animated.Value<ExpandedState>} expandedState 
+ */
+export function runSnap(clock, position, target, expandedState) {
+  const config = {
+    damping: 28,
+    mass: 0.3,
+    stiffness: 188.296,
+    overshootClamping: false,
+    toValue: target,
+    restSpeedThreshold: 0.001,
+    restDisplacementThreshold: 0.001,
+  }
+
+  const state = initEmptyState()
+
+  return block([
+    cond(clockRunning(clock), 0, [
+      set(state.finished, 0),
+      set(state.position, position),
+      startClock(clock)
+    ]),
+    spring(clock, state, config),
+    cond(state.finished, [stopClock(clock), set(expandedState, EXPANDED_STATES.IDLE)]),
+    state.position
+  ])
+}
+
+/**
+ * 
+ * @param {Animated.Value<ExpandedState>} expandedState 
+ * @param {Animated.Node<number>} position 
+ * @param {Animated.Value<number>} target 
+ */
+export function snapTo(expandedState, position, target, decayClock, springClock) {
+  const clock = new Clock()
+  return block([
+    cond(eq(expandedState, EXPANDED_STATES.EXPANDING), [
+      stopClock(decayClock),
+      stopClock(springClock),
+      set(position, runSnap(clock, position, target, expandedState))
+    ],[
+      cond(eq(expandedState, EXPANDED_STATES.COLLAPSING), [
+        stopClock(decayClock),
+        stopClock(springClock),
+        set(position, runSnap(clock, position, target, expandedState))
+      ])
+    ]),
+    position,
+  ])
+}
+
 /**
  * 
  * @param {Animated.Value<number>} translation 
  * @param {Animated.Value<number>} state 
  * @param {Animated.Value<number>} velocityX
- * @param {number} pickerWidth
- * @param {number} containerWidth
+ * @param {Animated.Value<number>} pickerWidth
+ * @param {Animated.Value<number>} containerWidth
+ * @param {Animated.Node<ExpandedState>}  expanded
+ * @param {Animated.Node<number>}  target
  */
-export function interaction(translation, state, velocityX, pickerWidth, containerWidth) {
-  const rightPoint = containerWidth < pickerWidth ? containerWidth - pickerWidth : 0
+export function interaction(translation, state, velocityX, pickerWidth, containerWidth, expanded, target) {
+  const rightPoint = cond(
+    lessThan(containerWidth, pickerWidth),
+    sub(containerWidth, pickerWidth),
+    0
+  )
   const decayClock = new Clock()
   const springClock = new Clock()
   const start = new Value(0)
@@ -192,7 +308,7 @@ export function interaction(translation, state, velocityX, pickerWidth, containe
       [
         stopClock(decayClock),
         stopClock(springClock),
-        drag(start, translation, position, pickerWidth, containerWidth)
+        drag(start, translation, position, pickerWidth, containerWidth, rightPoint)
       ],
       [
         cond(lessThan(0, position), [
@@ -201,7 +317,7 @@ export function interaction(translation, state, velocityX, pickerWidth, containe
         ]),
         cond(greaterThan(rightPoint, position), [
           stopClock(decayClock),
-          set(position, runSpring(springClock, position, new Value(rightPoint)))
+          set(position, runSpring(springClock, position, rightPoint))
         ]),
         cond(
           and(
@@ -217,6 +333,7 @@ export function interaction(translation, state, velocityX, pickerWidth, containe
         set(start, 0)
       ]
     ),
+    snapTo(expanded, position, target, decayClock, springClock),
     position
   ])
 }

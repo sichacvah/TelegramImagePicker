@@ -10,6 +10,7 @@ import { CameraRoll } from 'react-native'
   * @property {number} pageSize
   * @property {string=} after
   * @property {CameraRollAssetType} assetType
+  * @property {boolean} hasNextPage
   */
 
 /**
@@ -18,14 +19,15 @@ import { CameraRoll } from 'react-native'
 let state = {
   pageSize: 40,
   after: undefined,
-  assetType: 'Photos'
+  assetType: 'Photos',
+  hasNextPage: true
 }
 
 
 /**
- * @param {CameraRollAssetType} assetType
- * @param {number} pageSize
- * @param {string} after
+ * @param {CameraRollAssetType=} assetType
+ * @param {number=} pageSize
+ * @param {string=} after
  * @return {Promise<Image[]>}
  */
 export const fetchPhotos = (assetType=state.assetType, pageSize = 40, after) => {
@@ -39,6 +41,7 @@ export const fetchPhotos = (assetType=state.assetType, pageSize = 40, after) => 
  * @return {Promise<Image[]>}
  */
 export const next = () => 
+  !state.hasNextPage ? Promise.resolve([]) :
   CameraRoll.getPhotos({
     first: state.pageSize,
     after: state.after,
@@ -47,7 +50,8 @@ export const next = () =>
   .then(({ edges, page_info }) => {
     state = {
       ...state,
-      after: page_info.end_cursor
+      after: page_info.end_cursor,
+      hasNextPage: page_info.has_next_page
     }
 
     return edges.map(({ node: { image: { uri, width, height } } }) => ({
