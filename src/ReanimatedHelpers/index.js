@@ -6,7 +6,7 @@ import {
   Dimensions,
   Platform
 } from 'react-native'
-import Animated from 'react-native-reanimated'
+import Animated, { Easing } from 'react-native-reanimated'
 import { State as GestureState } from 'react-native-gesture-handler'
 import * as core from '../ImagePicker/core'
 /**
@@ -55,6 +55,8 @@ const {
   abs,
   max,
   min,
+  neq,
+  timing,
   debug
 } = Animated
 
@@ -67,6 +69,81 @@ const initEmptyState = () => ({
 })
 
 const deceleration = Platform.OS === 'ios' ? 0.998 : 0.985
+
+/**
+ * 
+ * @param {Animated.Clock} clock 
+ * @param {Animated.Value} position 
+ * @param {Animated.Value} target 
+ */
+export function changeSize(clock, position, target, expandedState) {
+  const state = {
+    finished: new Value(0),
+    position: new Value(0),
+    time: new Value(0),
+    frameTime: new Value(0)
+  }
+  const config = {
+    toValue: target,
+    duration: 2000,
+    easing: Easing.linear
+  }
+
+  return block([
+    cond(
+      clockRunning(clock),
+      0,
+      [
+        set(state.finished, 0),
+        set(state.position, position),
+        set(state.time, 0),
+        set(state.frameTime, 0),
+        set(state.position, position),
+        startClock(clock)
+      ]
+    ),
+    timing(clock, state, config),
+    cond(state.finished, [stopClock(clock), set(expandedState, EXPANDED_STATES.IDLE)]),
+    state.position
+  ])
+}
+
+/**
+ * 
+ * @param {Animated.Clock} clock 
+ * @param {Animated.Value} position 
+ * @param {Animated.Value} target 
+ */
+export function runTiming(clock, position, target) {
+  const state = {
+    finished: new Value(0),
+    position: new Value(0),
+    time: new Value(0),
+    frameTime: new Value(0)
+  }
+  const config = {
+    toValue: target,
+    duration: 2000,
+    easing: Easing.linear
+  }
+
+  return block([
+    cond(
+      clockRunning(clock),
+      0,
+      [
+        set(state.finished, 0),
+        set(state.position, position),
+        set(state.time, 0),
+        set(state.frameTime, 0),
+        startClock(clock)
+      ]
+    ),
+    timing(clock, state, config),
+    cond(state.finished, [stopClock(clock)]),
+    state.position
+  ])
+}
 
 /**
  * 
@@ -127,6 +204,7 @@ export function runSpring(clock, position, value) {
     state.position
   ])
 }
+
 
 /**
  * 
@@ -230,10 +308,9 @@ export function drag(start, translation, position, pickerWidth, containerWidth, 
  * 
  * @param {Animated.Clock} clock 
  * @param {Animated.Node<number>} position 
- * @param {Animated.Node<number>} target 
- * @param {Animated.Value<ExpandedState>} expandedState 
+ * @param {Animated.Value<number>} target 
  */
-export function runSnap(clock, position, target, expandedState) {
+export function runSnap(clock, position, target) {
   const config = {
     damping: 28,
     mass: 0.3,
@@ -253,35 +330,10 @@ export function runSnap(clock, position, target, expandedState) {
       startClock(clock)
     ]),
     spring(clock, state, config),
-    cond(state.finished, [stopClock(clock), set(expandedState, EXPANDED_STATES.IDLE)]),
+    cond(state.finished, [stopClock(clock)]),
     state.position
   ])
 }
-
-/**
- * 
- * @param {Animated.Value<ExpandedState>} expandedState 
- * @param {Animated.Node<number>} position 
- * @param {Animated.Value<number>} target 
- */
-export function snapTo(expandedState, position, target, decayClock, springClock) {
-  const clock = new Clock()
-  return block([
-    cond(eq(expandedState, EXPANDED_STATES.EXPANDING), [
-      stopClock(decayClock),
-      stopClock(springClock),
-      set(position, runSnap(clock, position, target, expandedState))
-    ],[
-      cond(eq(expandedState, EXPANDED_STATES.COLLAPSING), [
-        stopClock(decayClock),
-        stopClock(springClock),
-        set(position, runSnap(clock, position, target, expandedState))
-      ])
-    ]),
-    position,
-  ])
-}
-
 /**
  * 
  * @param {Animated.Value<number>} translation 
@@ -289,10 +341,9 @@ export function snapTo(expandedState, position, target, decayClock, springClock)
  * @param {Animated.Value<number>} velocityX
  * @param {Animated.Value<number>} pickerWidth
  * @param {Animated.Value<number>} containerWidth
- * @param {Animated.Node<ExpandedState>}  expanded
- * @param {Animated.Node<number>}  target
+ * @param {Animated.Value<number>} target
  */
-export function interaction(translation, state, velocityX, pickerWidth, containerWidth, expanded, target) {
+export function interaction(translation, state, velocityX, pickerWidth, containerWidth, target, expanded) {
   const rightPoint = cond(
     lessThan(containerWidth, pickerWidth),
     sub(containerWidth, pickerWidth),
@@ -302,38 +353,48 @@ export function interaction(translation, state, velocityX, pickerWidth, containe
   const springClock = new Clock()
   const start = new Value(0)
   const position = new Value(0)
+  const spanClock = new Clock()
+  const interaction = cond(
+    eq(state, GestureState.ACTIVE),
+    [
+      stopClock(decayClock),
+      stopClock(springClock),
+      stopClock(spanClock),
+      drag(start, translation, position, pickerWidth, containerWidth, rightPoint)
+    ],
+    [
+      cond(lessThan(0, position), [
+        stopClock(decayClock),
+        set(position, runSpring(springClock, position, new Value(0)))
+      ]),
+      cond(greaterThan(rightPoint, position), [
+        stopClock(decayClock),
+        set(position, runSpring(springClock, position, rightPoint))
+      ]),
+      cond(
+        and(
+          greaterThan(0, position),
+          lessThan(rightPoint, position),
+          lessThan(5, abs(velocityX)),
+          not(clockRunning(springClock))
+        ),
+        [
+          set(position, runDecay(decayClock, position, velocityX))
+        ]
+      ),
+      set(start, 0)
+    ]
+  )
+
   return block([
     cond(
-      eq(state, GestureState.ACTIVE),
-      [
-        stopClock(decayClock),
-        stopClock(springClock),
-        drag(start, translation, position, pickerWidth, containerWidth, rightPoint)
-      ],
-      [
-        cond(lessThan(0, position), [
-          stopClock(decayClock),
-          set(position, runSpring(springClock, position, new Value(0)))
-        ]),
-        cond(greaterThan(rightPoint, position), [
-          stopClock(decayClock),
-          set(position, runSpring(springClock, position, rightPoint))
-        ]),
-        cond(
-          and(
-            greaterThan(0, position),
-            lessThan(rightPoint, position),
-            lessThan(5, abs(velocityX)),
-            not(clockRunning(springClock))
-          ),
-          [
-            set(position, runDecay(decayClock, position, velocityX))
-          ]
-        ),
-        set(start, 0)
-      ]
-    ),
-    snapTo(expanded, position, target, decayClock, springClock),
+      or(eq(expanded, EXPANDED_STATES.EXPANDING), eq(expanded, EXPANDED_STATES.COLLAPSING)),
+    [
+      stopClock(decayClock),
+      stopClock(springClock),
+      set(velocityX, 0),
+      set(position, runTiming(spanClock, position, target, expanded))
+    ], interaction),
     position
   ])
 }

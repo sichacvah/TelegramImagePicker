@@ -13,6 +13,7 @@ import * as core from './core'
 import Animated from 'react-native-reanimated'
 import { PanGestureHandler, State as GestureState } from 'react-native-gesture-handler'
 import ImageItem from './ImageItem'
+import { interaction, SelectionStates } from '../ReanimatedHelpers/interaction'
 
 /**
  * @typedef {import('./core').Image} Image
@@ -47,22 +48,54 @@ const expanded = new Animated.Value(helpers.EXPANDED_STATES.IDLE)
 /**
  * @type {Animated.Value<number>}
  */
-const target = new Animated.Value(-1)
+const expandingTarget = new Animated.Value(1)
+
+/**
+ * @type {Animated.Value<number>}
+ */
+const collapsingTarget = new Animated.Value(1)
 
 
 /**
  * @extends {React.PureComponent<ImagePickerProps>}
  */
 class ImagePicker extends React.PureComponent {
-  get containerWidth() {
-    return core.getContainerWidth(this.props.containerPadding)
-  }
-  containerWidthValue = new Animated.Value(this.containerWidth)
+  getContainerWidth = () =>
+    core.getContainerWidth(this.props.containerPadding)
 
-  get pickerWidth() {
+
+  getPickerWidth = () => {
     return core.getPickerWidth(this.props.cellMargin, this.props.cellSideSize, this.props.images)
   }
-  pickerWidthValue = new Animated.Value(this.pickerWidth)
+  getPickerExpandedWidth = () => core.getPickerExpandedWidth(
+    this.props.cellMargin,
+    this.props.expandedCellSideSize,
+    this.getContainerWidth(),
+    this.props.images
+  )
+
+  constructor(props) {
+    super(props)
+    this.pickerWidthValue = new Animated.Value(this.getPickerWidth())
+    this.expandedPickerWidthValue = new Animated.Value(this.getPickerExpandedWidth())
+    this.containerWidthValue = new Animated.Value(this.getContainerWidth())
+    this.progress = new Animated.Value(0)
+    this.selectionState = new Animated.Value(0)
+    this.selected = false
+    this.positionOfSelectedImage = new Animated.Value(0)
+    this.finalPickerWidth = Animated.cond(
+      Animated.or(Animated.eq(this.selectionState, SelectionStates.Collapsing), Animated.eq(this.selectionState, SelectionStates.Expanded)),
+      this.expandedPickerWidthValue,
+      this.pickerWidthValue
+    )
+    this.translateX = interaction(
+      { translation: translationX, state, velocityX },
+      { width: this.pickerWidthValue,
+        expandedWidth: this.expandedPickerWidthValue,
+        containerWidth: new Animated.Value(core.getContainerWidth(this.props.containerPadding)) },
+      { state: this.selectionState, expandingTarget, collapsingTarget, progress: this.progress }
+    )
+  }
 
   /**
    * 
@@ -71,13 +104,19 @@ class ImagePicker extends React.PureComponent {
   componentDidUpdate(prevProps) {
     if (this.props.images.length !== prevProps.images.length) {
       this.pickerWidthValue.setValue(
-        core.getPickerWidth(this.props.cellMargin, this.props.cellSideSize, this.props.images)
+        this.getPickerWidth()
+      )
+      this.expandedPickerWidthValue.setValue(
+        this.getPickerExpandedWidth()
       )
     }
   }
 
-  onEndReached = ([translateX]) => {
-    const { pickerWidth, containerWidth, props } = this
+  onEndReached = ([translateX, selectionState]) => {
+    const { getPickerWidth, getContainerWidth, props, getPickerExpandedWidth } = this
+    if (selectionState === SelectionStates.Collapsing || selectionState === SelectionStates.Expanding) return
+    const pickerWidth = selectionState === SelectionStates.Collapsed || selectionState === SelectionStates.Collapsing ? getPickerWidth() : getPickerExpandedWidth()
+    const containerWidth = getContainerWidth()
     const { onEndReaching } = props
     if (!onEndReaching || pickerWidth < containerWidth) return
     const offset = (pickerWidth + translateX)
@@ -86,33 +125,7 @@ class ImagePicker extends React.PureComponent {
     }
   }
 
-  expansion = new Animated.Value(0)
-  expansionClock = new Animated.Clock()
-
-  expansionValue = Animated.block([
-    Animated.cond(
-      Animated.eq(expanded, helpers.EXPANDED_STATES.EXPANDING),
-      [
-        Animated.set(this.expansion, helpers.runSpring(this.expansionClock, this.expansion, new Animated.Value(1)))
-      ],
-      Animated.cond(Animated.eq(expanded, helpers.EXPANDED_STATES.COLLAPSING),[
-        Animated.set(this.expansion, helpers.runSpring(this.expansionClock, this.expansion, new Animated.Value(0)))
-      ])
-    ),
-    this.expansion
-  ])
-
-  translateX = helpers.interaction(
-    translationX,
-    state,
-    velocityX,
-    this.pickerWidthValue,
-    this.containerWidthValue,
-    expanded,
-    target
-  )
-
-  selected = false
+  
 
   /**
    * @param {number} indx
@@ -121,45 +134,52 @@ class ImagePicker extends React.PureComponent {
     const { props } = this
     const { cellMargin, expandedCellSideSize, containerPadding, cellSideSize, images } = props
     const containerSize = core.getContainerWidth(containerPadding)
+    const collapsingWidth = Math.min(
+      -core.getPickerWidth(cellMargin, cellSideSize, images.slice(0, indx)) - cellSideSize / 2 + containerSize / 2,
+      0
+    )
+    const expandedWidth = core.getExpandedWidth(expandedCellSideSize, containerSize)(images[indx])
+    const expandingWidth = Math.min(
+      -core.getPickerExpandedWidth(cellMargin, expandedCellSideSize, containerSize, images.slice(0, indx)) - expandedWidth / 2 + containerSize / 2,
+      0
+    )
+    expandingTarget.setValue(expandingWidth)
+    collapsingTarget.setValue(collapsingWidth)
     if (this.selected) {
       this.selected = false
-      this.pickerWidthValue.setValue(core.getPickerWidth(cellMargin, cellSideSize, images))
-      target.setValue(-core.getPickerWidth(cellMargin, cellSideSize, images.slice(0, indx)))
-
-      expanded.setValue(helpers.EXPANDED_STATES.COLLAPSING)
+      this.selectionState.setValue(3)
     } else {
-      this.pickerWidthValue.setValue(core.getPickerExpandedWidth(cellMargin, expandedCellSideSize, containerSize, images))
-      target.setValue(-core.getPickerExpandedWidth(cellMargin, expandedCellSideSize, containerSize, images.slice(0, indx)))
-      expanded.setValue(helpers.EXPANDED_STATES.EXPANDING)
+      this.selectionState.setValue(1)
       this.selected = true
     }
   }
 
+  
 
   render() {
-    const { props, containerWidth, pickerWidth, onEndReached, translateX } = this
+    const { props, getContainerWidth, onEndReached, translateX, selectionState } = this
     const { images, cellMargin, expandedCellSideSize, cellSideSize } = props
     return (
       <React.Fragment>
         <PanGestureHandler
-          failOffsetX={containerWidth}
+          failOffsetX={getContainerWidth()}
           {...gestureHandler}>
-            <Animated.View style={[styles.picker, { width: pickerWidth, marginHorizontal: props.containerPadding }, { transform: [ { translateX: translateX } ] }]}>
+            <Animated.View style={[styles.picker, { width: this.finalPickerWidth, marginHorizontal: props.containerPadding }, { transform: [ { translateX: translateX } ] }]}>
               {images.map((image, idx) => (
                 <ImageItem
                   key={String(idx)}
                   onSelect={this.onSelect}
                   expandedSideSize={expandedCellSideSize}
                   sideSize={cellSideSize}
-                  containerSize={this.containerWidth}
-                  expansionValue={this.expansionValue}
+                  containerSize={getContainerWidth()}
+                  expansionValue={this.progress}
                   margin={cellMargin}
                   image={image}
                   index={idx} />
               ))}
             </Animated.View>
         </PanGestureHandler>
-        <Animated.Code exec={Animated.call([translateX], onEndReached)}/>
+        <Animated.Code exec={Animated.call([translateX, selectionState], onEndReached)}/>
       </React.Fragment>
     )
   }

@@ -23,19 +23,22 @@ import * as core from './core'
  * @extends {React.PureComponent<ImageItemProps>}
  */
 export default class ImageItem extends React.PureComponent {
-  onSelect = () => console.log(this.props.index) || this.props.onSelect(this.props.index)
+  onSelect = () => this.props.onSelect(this.props.index)
 
   imageStyle = {
     width: Animated.interpolate(this.props.expansionValue, {
       inputRange: [0, 1],
-      outputRange: [this.props.sideSize, core.getExpandedWidth(this.props.expandedSideSize, this.props.containerSize)(this.props.image)]
+      outputRange: [this.props.sideSize, core.getExpandedWidth(this.props.expandedSideSize, this.props.containerSize)(this.props.image)],
+      extrapolate: Animated.Extrapolate.CLAMP
     }),
     height: Animated.interpolate(this.props.expansionValue, {
       inputRange: [0, 1],
       outputRange: [
         this.props.sideSize,
         this.props.expandedSideSize
-      ]
+      ],
+      extrapolate: Animated.Extrapolate.CLAMP
+
     })
   }
 
