@@ -64,16 +64,20 @@ export const getPickerExpandedWidth = (margin, expandedHeight, containerWidth, i
  * @param {number} expandedCellSideSize
  * @param {number} containerPadding
  * @param {Image[]} images
+ * @param {number} cellMargin
  */
-export const prepareImages = (cellSideSize, expandedCellSideSize, containerPadding, images) => {
-  const { images: preparedImages } = images.reduce((acc, image) => {
+export const prepareImages = (cellSideSize, expandedCellSideSize, containerPadding, images, cellMargin) => {
+  const { images: preparedImages } = images.reduce((acc, image, currentIndex) => {
     const prevOffset = acc.offset
     const offset = prevOffset + cellSideSize - getExpandedWidth(expandedCellSideSize, getContainerWidth(containerPadding))(image)
+    const leftOffset = acc.leftOffset 
+    const rightOffset = acc.leftOffset + getExpandedWidth(expandedCellSideSize, getContainerWidth(containerPadding))(image) + (currentIndex === 0 ? 0 : cellMargin)
     return {
-      images: acc.images.concat([{...image, offset: prevOffset }]),
-      offset
+      images: acc.images.concat([{...image, offset: prevOffset, leftOffset, rightOffset }]),
+      offset,
+      leftOffset: rightOffset
     }
-  }, { images: [], offset: 0 })
+  }, { images: [], offset: 0, leftOffset: 0 })
   return preparedImages
 }
 

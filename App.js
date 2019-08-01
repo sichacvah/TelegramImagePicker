@@ -31,7 +31,7 @@ export default class App extends React.PureComponent {
   }
 
   loadMore = () => {
-    Promise.resolve(getRandom20Colors()).then(images => this.setState({ images: this.state.images.concat(images) }))
+    // Promise.resolve(getRandom20Colors()).then(images => this.setState({ images: this.state.images.concat(images) }))
     // ImageService.next().then(images => {
     //   this.setState({ images: this.state.images.concat(images) })
     // })
@@ -41,8 +41,8 @@ export default class App extends React.PureComponent {
       <View style={styles.container}>
         <ImagePicker
           cellMargin={6}
-          cellSideSize={100}
-          expandedCellSideSize={200}
+          cellSideSize={80}
+          expandedCellSideSize={160}
           onEndReaching={this.loadMore}
           containerPadding={8}
           images={this.state.images} />

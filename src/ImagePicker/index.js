@@ -207,7 +207,7 @@ class ImagePicker extends React.PureComponent {
     const { props, getContainerWidth, onEndReached, translateX, selectionState, finalPickerWidth, expand, collapse, translateY, state, snapTo } = this
     const { images, cellMargin, expandedCellSideSize, cellSideSize, containerPadding } = props
     const { selected, selectedOrder } = state
-    const preparedImages = core.prepareImages(cellSideSize, expandedCellSideSize, containerPadding, images)
+    const preparedImages = core.prepareImages(cellSideSize, expandedCellSideSize, containerPadding, images, cellMargin)
 
     return (
       <Animated.View>
@@ -218,6 +218,9 @@ class ImagePicker extends React.PureComponent {
               {preparedImages.map((image, idx) => {
                 return (
                   <ImageItem
+                    position={translateX}
+                    leftOffset={image.leftOffset}
+                    rightOffset={image.rightOffset}
                     selected={selected[idx]}
                     selectedIndex={selected[idx] ? selectedOrder.findIndex(i => i === idx) + 1 : 0}
                     key={String(idx)}
@@ -226,6 +229,7 @@ class ImagePicker extends React.PureComponent {
                     expandedSideSize={expandedCellSideSize}
                     sideSize={cellSideSize}
                     containerSize={getContainerWidth()}
+                    containerPadding={containerPadding}
                     expansionValue={this.progress}
                     margin={cellMargin}
                     image={image}
