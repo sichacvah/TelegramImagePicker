@@ -136,12 +136,12 @@ class ImagePicker extends React.PureComponent {
     const { cellMargin, expandedCellSideSize, containerPadding, cellSideSize, images } = props
     const containerSize = core.getContainerWidth(containerPadding)
     const collapsingWidth = Math.min(
-      -core.getPickerWidth(cellMargin, cellSideSize, images.slice(0, indx)) - cellSideSize / 2 + containerSize / 2,
+      -core.getPickerWidth(cellMargin, cellSideSize, images.slice(0, indx)) - cellSideSize / 2 + containerSize / 2 - cellMargin,
       0
     )
     const expandedWidth = core.getExpandedWidth(expandedCellSideSize, containerSize)(images[indx])
     const expandingWidth = Math.min(
-      -core.getPickerExpandedWidth(cellMargin, expandedCellSideSize, containerSize, images.slice(0, indx)) - expandedWidth / 2 + containerSize / 2,
+      -core.getPickerExpandedWidth(cellMargin, expandedCellSideSize, containerSize, images.slice(0, indx)) - expandedWidth / 2 + containerSize / 2 - cellMargin,
       0
     )
     if (this.selected) {

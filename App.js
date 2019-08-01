@@ -41,8 +41,8 @@ export default class App extends React.PureComponent {
       <View style={styles.container}>
         <ImagePicker
           cellMargin={6}
-          cellSideSize={150}
-          expandedCellSideSize={300}
+          cellSideSize={100}
+          expandedCellSideSize={200}
           onEndReaching={this.loadMore}
           containerPadding={8}
           images={this.state.images} />
