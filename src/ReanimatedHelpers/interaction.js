@@ -4,12 +4,10 @@ import { Platform } from 'react-native'
 import Animated, { Easing } from 'react-native-reanimated'
 
 const {
-  Extrapolate,
   set,
   cond,
   eq,
   Value,
-  event,
   Clock,
   stopClock,
   not,
@@ -31,8 +29,7 @@ const {
   min,
   neq,
   timing,
-  interpolate,
-  debug
+  interpolate
 } = Animated
 
 
@@ -353,23 +350,12 @@ export const runSelection = (clock, picker, selection, prevPosition, position) =
   const toValue = new Value(0)
   const dest = new Value(0)
   const start = new Value(0)
-  const x = new Value(0)
-  const x1 = new Value(0)
-  const x2 = new Value(0)
   const state = {
     finished: new Value(0),
     position: selection.progress,
     time: new Value(0),
     frameTime: new Value(0)
   }
-  const done = new Value(0)
-  const delta = new Value(0)
-  const framePostion = new Value(0)
-  const expansion = new Value(0)
-  const collapsedDistance = new Value(0)
-  const expandedDistance = new Value(0)
-  const scaleRatio = new Value(0)
-  const targetDistance = new Value(0)
 
   return block([
     
@@ -378,14 +364,16 @@ export const runSelection = (clock, picker, selection, prevPosition, position) =
       [
         set(start, 0),
         set(dest, 1),
-        cond(clockRunning(clock), [
-          // set(position, movePicker(clock, picker, selection, prevPosition)),
-        ], [
-          set(done, 0),
+        cond(clockRunning(clock), 0, [
           set(prevPosition, position),
         ]),
         runTiming(clock, state, start, dest, toValue),
-        cond(state.finished, [stopClock(clock), set(selection.state, Expanded)])
+        cond(state.finished, [
+          stopClock(clock),
+          set(selection.state, Expanded),
+          set(position, selection.expandingTarget),
+          set(selection.collapsingTarget, 1),
+        ])
       ]
     ),
     cond(
@@ -397,7 +385,12 @@ export const runSelection = (clock, picker, selection, prevPosition, position) =
           set(prevPosition, position),
         ]),
         runTiming(clock, state, start, dest, toValue),
-        cond(state.finished, [stopClock(clock), set(selection.state, Collapsed)])
+        cond(state.finished, [
+          stopClock(clock),
+          set(selection.state, Collapsed),
+          set(position, selection.collapsingTarget),
+          set(selection.expandingTarget, 1),
+        ])
       ]
     ),
     state.position
@@ -476,11 +469,13 @@ export const interaction = (gesture, picker, selection) => {
           ]
         ),
         runSelection(clocks.span, picker, selection, prevPosition, position),
-        // cond(
-          // eq(selection.state, Expanding),
+
         cond(
           or(eq(selection.state, Expanded), eq(selection.state, Expanding)),
-          set(position, add(prevPosition, multiply(selection.progress, sub(selection.expandingTarget, prevPosition))))
+          set(position, interpolate(selection.progress, {
+            inputRange: [0, 1],
+            outputRange: [prevPosition, selection.expandingTarget]
+          }))
         ),
         cond(
           or(eq(selection.state, Collapsed), eq(selection.state, Collapsing)),
@@ -489,14 +484,6 @@ export const interaction = (gesture, picker, selection) => {
             outputRange: [selection.collapsingTarget, prevPosition]
            }))
         ),
-        // set(position, add(prevPosition, multiply(selection.progress, sub(selection.collapsingTarget, prevPosition)))),
-        // ),
-        // cond(eq(selection.state, Collapsing), 
-        //   set(position, add(prevPosition, multiply(selection.progress, sub(selection.collapsingTarget, prevPosition)))),
-        // )
-
-        // set(position, movePicker(clocks.timing, picker, selection, position)),
-        // updateSelectionPosition(clocks.span, selection.state, position, selection.target)
       ],
       [
         dragging,

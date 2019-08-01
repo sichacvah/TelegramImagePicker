@@ -126,8 +126,7 @@ class ImagePicker extends React.PureComponent {
     }
   }
 
-  
-
+  needToAnimate = false
   /**
    * @param {number} indx
    */
@@ -149,17 +148,24 @@ class ImagePicker extends React.PureComponent {
     } else {
       expandingTarget.setValue(expandingWidth)
     }
-
+    this.needToAnimate = true
   }
 
-  changeTarget = ([target]) => {
-    console.log('target', target)
+  expand = () => {
+    if (!this.needToAnimate) return
+    if (!this.selected) {
+      this.selected = true
+      this.selectionState.setValue(1)
+      this.needToAnimate = false
+    }
+  }
+
+  collapse = () => {
+    if (!this.needToAnimate) return
     if (this.selected) {
       this.selected = false
       this.selectionState.setValue(3)
-    } else {
-      this.selected = true
-      this.selectionState.setValue(1)
+      this.needToAnimate = false
     }
   }
 
@@ -198,8 +204,8 @@ class ImagePicker extends React.PureComponent {
             </Animated.View>
         </PanGestureHandler>
         <Animated.Code exec={Animated.onChange(translateX, Animated.call([translateX, selectionState], onEndReached))}/>
-        <Animated.Code exec={Animated.onChange(expandingTarget, Animated.call([expandingTarget], this.changeTarget))} />
-        <Animated.Code exec={Animated.onChange(collapsingTarget, Animated.call([collapsingTarget], this.changeTarget))} />
+        <Animated.Code exec={Animated.onChange(expandingTarget, Animated.call([expandingTarget, selectionState], this.expand))} />
+        <Animated.Code exec={Animated.onChange(collapsingTarget, Animated.call([collapsingTarget, selectionState], this.collapse))} />
 
       </Animated.View>
     )
