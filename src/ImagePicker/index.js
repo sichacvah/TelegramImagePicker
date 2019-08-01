@@ -15,6 +15,7 @@ import { PanGestureHandler, State as GestureState } from 'react-native-gesture-h
 import ImageItem from './ImageItem'
 import { interaction, SelectionStates } from '../ReanimatedHelpers/interaction'
 
+
 /**
  * @typedef {import('./core').Image} Image
  * 
@@ -143,44 +144,64 @@ class ImagePicker extends React.PureComponent {
       -core.getPickerExpandedWidth(cellMargin, expandedCellSideSize, containerSize, images.slice(0, indx)) - expandedWidth / 2 + containerSize / 2,
       0
     )
-    expandingTarget.setValue(expandingWidth)
-    collapsingTarget.setValue(collapsingWidth)
+    if (this.selected) {
+      collapsingTarget.setValue(collapsingWidth)
+    } else {
+      expandingTarget.setValue(expandingWidth)
+    }
+
+  }
+
+  changeTarget = ([target]) => {
+    console.log('target', target)
     if (this.selected) {
       this.selected = false
       this.selectionState.setValue(3)
     } else {
-      this.selectionState.setValue(1)
       this.selected = true
+      this.selectionState.setValue(1)
     }
   }
 
-  
-
   render() {
     const { props, getContainerWidth, onEndReached, translateX, selectionState } = this
-    const { images, cellMargin, expandedCellSideSize, cellSideSize } = props
+    const { images, cellMargin, expandedCellSideSize, cellSideSize, containerPadding } = props
+    const { images: preparedImages } = images.reduce((acc, image) => {
+      const prevOffset = acc.offset
+      const offset = prevOffset + cellSideSize - core.getExpandedWidth(expandedCellSideSize, core.getContainerWidth(containerPadding))(image)
+      return {
+        images: acc.images.concat([{...image, offset: prevOffset }]),
+        offset
+      }
+    }, { images: [], offset: 0 })
     return (
-      <React.Fragment>
+      <Animated.View>
         <PanGestureHandler
           failOffsetX={getContainerWidth()}
           {...gestureHandler}>
-            <Animated.View style={[styles.picker, { width: this.finalPickerWidth, marginHorizontal: props.containerPadding }, { transform: [ { translateX: translateX } ] }]}>
-              {images.map((image, idx) => (
-                <ImageItem
-                  key={String(idx)}
-                  onSelect={this.onSelect}
-                  expandedSideSize={expandedCellSideSize}
-                  sideSize={cellSideSize}
-                  containerSize={getContainerWidth()}
-                  expansionValue={this.progress}
-                  margin={cellMargin}
-                  image={image}
-                  index={idx} />
-              ))}
+            <Animated.View shouldRasterizeIOS style={[styles.picker, { width: this.finalPickerWidth, marginHorizontal: props.containerPadding }, { transform: [ { translateX: translateX } ] }]}>
+              {preparedImages.map((image, idx) => {
+                return (
+                  <ImageItem
+                    key={String(idx)}
+                    onSelect={this.onSelect}
+                    offset={image.offset}
+                    expandedSideSize={expandedCellSideSize}
+                    sideSize={cellSideSize}
+                    containerSize={getContainerWidth()}
+                    expansionValue={this.progress}
+                    margin={cellMargin}
+                    image={image}
+                    index={idx} />
+                )
+              })}
             </Animated.View>
         </PanGestureHandler>
-        <Animated.Code exec={Animated.call([translateX, selectionState], onEndReached)}/>
-      </React.Fragment>
+        <Animated.Code exec={Animated.onChange(translateX, Animated.call([translateX, selectionState], onEndReached))}/>
+        <Animated.Code exec={Animated.onChange(expandingTarget, Animated.call([expandingTarget], this.changeTarget))} />
+        <Animated.Code exec={Animated.onChange(collapsingTarget, Animated.call([collapsingTarget], this.changeTarget))} />
+
+      </Animated.View>
     )
   }
 }
@@ -189,6 +210,7 @@ class ImagePicker extends React.PureComponent {
 const styles = StyleSheet.create({  
   picker: {
     backgroundColor: 'transparent',
+    justifyContent: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center'
   },

@@ -5,25 +5,43 @@ import ImagePicker from './src/ImagePicker'
 import * as ImageService from './src/ImagePicker/imageFetchingService'
 
 
+function getRandomColor() {
+  let letters = '0123456789ABCDEF';
+  let color = '#';
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+}
+
+function getRandom20Colors() {
+  let colors = []
+  for (let i = 0; i < 20; i++) {
+    colors.push({ color: getRandomColor(), uri: `https://loremflickr.com/${i % 2 === 0 ? 300 : 1000}/${500}`, width: i % 2 === 0 ? 300 : 1000, height: 500 })
+  }
+  return colors
+}
 export default class App extends React.PureComponent {
   state = {
     images: []
   }
   componentDidMount() {
-    ImageService.fetchPhotos().then(images => this.setState({images}))
+    // ImageService.fetchPhotos().then(images => this.setState({images}))
+    Promise.resolve(getRandom20Colors()).then(images => this.setState({ images }))
   }
 
   loadMore = () => {
-    ImageService.next().then(images => {
-      this.setState({ images: this.state.images.concat(images) })
-    })
+    Promise.resolve(getRandom20Colors()).then(images => this.setState({ images: this.state.images.concat(images) }))
+    // ImageService.next().then(images => {
+    //   this.setState({ images: this.state.images.concat(images) })
+    // })
   }
   render() {
     return (
       <View style={styles.container}>
         <ImagePicker
           cellMargin={6}
-          cellSideSize={80}
+          cellSideSize={150}
           expandedCellSideSize={300}
           onEndReaching={this.loadMore}
           containerPadding={8}

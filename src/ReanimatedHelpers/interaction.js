@@ -80,12 +80,12 @@ export function runDecay(clock, position, velocity) {
  * @param {Animated.Value<number>} toValue 
  * @param {number=} duration
  */
-export function runTiming(clock, state, start, dest, toValue, duration=2000) {
+export function runTiming(clock, state, start, dest, toValue, duration=300) {
 
   const config = {
     toValue,
     duration,
-    easing: Easing.inOut(Easing.ease)
+    easing: Easing.linear
   }
 
   return block([
@@ -379,13 +379,13 @@ export const runSelection = (clock, picker, selection, prevPosition, position) =
         set(start, 0),
         set(dest, 1),
         cond(clockRunning(clock), [
+          // set(position, movePicker(clock, picker, selection, prevPosition)),
         ], [
           set(done, 0),
           set(prevPosition, position),
-          set(framePostion, position),
         ]),
         runTiming(clock, state, start, dest, toValue),
-        cond(state.finished, set(selection.state, Expanded))
+        cond(state.finished, [stopClock(clock), set(selection.state, Expanded)])
       ]
     ),
     cond(
@@ -397,7 +397,7 @@ export const runSelection = (clock, picker, selection, prevPosition, position) =
           set(prevPosition, position),
         ]),
         runTiming(clock, state, start, dest, toValue),
-        cond(state.finished, set(selection.state, Collapsed))
+        cond(state.finished, [stopClock(clock), set(selection.state, Collapsed)])
       ]
     ),
     state.position
@@ -422,8 +422,8 @@ export const movePicker = (clock, picker, selection, position) => {
 
   const config = {
     toValue,
-    duration: 2000,
-    easing: Easing.inOut(Easing.ease)
+    duration: 200,
+    easing: Easing.linear
   }
 
   return block([
@@ -459,7 +459,7 @@ export const interaction = (gesture, picker, selection) => {
 
   const rightPoint = getrightPoint(picker, selection)
   const dragging = dragAndRelease(position, gesture, picker, rightPoint, clocks, selection)
-
+  const prevState = new Value(0)
   return block([
     cond(
       or(
@@ -467,11 +467,35 @@ export const interaction = (gesture, picker, selection) => {
         eq(selection.state, Collapsing)
       ),
       [
-        stopClock(clocks.spring),
-        stopClock(clocks.decay),
+        cond(
+          neq(prevState, selection.state),
+          [
+            stopClock(clocks.spring),
+            stopClock(clocks.decay),
+            set(gesture.velocityX, 0),
+          ]
+        ),
         runSelection(clocks.span, picker, selection, prevPosition, position),
-        set(position, movePicker(clocks.timing, picker, selection, prevPosition)),
-        debug('position', position)
+        // cond(
+          // eq(selection.state, Expanding),
+        cond(
+          or(eq(selection.state, Expanded), eq(selection.state, Expanding)),
+          set(position, add(prevPosition, multiply(selection.progress, sub(selection.expandingTarget, prevPosition))))
+        ),
+        cond(
+          or(eq(selection.state, Collapsed), eq(selection.state, Collapsing)),
+          set(position, interpolate(selection.progress, { 
+            inputRange: [0, 1],
+            outputRange: [selection.collapsingTarget, prevPosition]
+           }))
+        ),
+        // set(position, add(prevPosition, multiply(selection.progress, sub(selection.collapsingTarget, prevPosition)))),
+        // ),
+        // cond(eq(selection.state, Collapsing), 
+        //   set(position, add(prevPosition, multiply(selection.progress, sub(selection.collapsingTarget, prevPosition)))),
+        // )
+
+        // set(position, movePicker(clocks.timing, picker, selection, position)),
         // updateSelectionPosition(clocks.span, selection.state, position, selection.target)
       ],
       [
@@ -479,6 +503,7 @@ export const interaction = (gesture, picker, selection) => {
         set(prevPosition, position)
       ]
     ),
+    set(prevState, selection.state),
     position
   ])
 }

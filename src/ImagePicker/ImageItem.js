@@ -25,43 +25,90 @@ import * as core from './core'
 export default class ImageItem extends React.PureComponent {
   onSelect = () => this.props.onSelect(this.props.index)
 
+  getExpandedWidth = () => {
+    return core.getExpandedWidth(this.props.expandedSideSize, this.props.containerSize)(this.props.image)
+  }
+
   imageStyle = {
-    width: Animated.interpolate(this.props.expansionValue, {
-      inputRange: [0, 1],
-      outputRange: [this.props.sideSize, core.getExpandedWidth(this.props.expandedSideSize, this.props.containerSize)(this.props.image)],
-      extrapolate: Animated.Extrapolate.CLAMP
-    }),
-    height: Animated.interpolate(this.props.expansionValue, {
+    // alignSelf: 'flex-start',
+    backgroundColor: this.props.image.color,
+    width:  this.getExpandedWidth(),
+    height: this.props.expandedSideSize,
+    transform: [
+      {
+        scaleY: Animated.interpolate(this.props.expansionValue, {
+          inputRange: [0, 1],
+          outputRange: [this.props.expandedSideSize / this.props.sideSize, 1],
+          extrapolate: Animated.Extrapolate.CLAMP
+        }),
+        scaleX: Animated.interpolate(this.props.expansionValue, {
+          inputRange: [0, 1],
+          outputRange: [this.getExpandedWidth() / this.props.sideSize, 1],
+          extrapolate: Animated.Extrapolate.CLAMP
+        })
+      }
+    ]
+    // aspectRatio: this.props.expandedSideSize / this.getExpandedWidth()
+
+    // width: Animated.interpolate(this.props.expansionValue, {
+    //   inputRange: [0, 1],
+    //   outputRange: [this.props.sideSize, this.getExpandedWidth()],
+    //   extrapolate: Animated.Extrapolate.CLAMP
+    // }),
+    // height: Animated.interpolate(this.props.expansionValue, {
+    //   inputRange: [0, 1],
+    //   outputRange: [
+    //     this.props.sideSize,
+    //     this.props.expandedSideSize
+    //   ],
+    //   extrapolate: Animated.Extrapolate.CLAMP
+    // }),
+    // aspectRatio: Animated.interpolate(this.props.expansionValue, {
+    //   inputRange: [0, 1],
+    //   outputRange: [1, this.getExpandedWidth() /],
+    //   extrapolate: Animated.Extrapolate.CLAMP
+    // })
+  }
+
+  imgWrapperStyle = {
+    transform: [
+      {
+        translateX: Animated.interpolate(this.props.expansionValue, {
+          inputRange: [0, 1],
+          outputRange: [this.props.offset + this.props.sideSize / 2 - this.getExpandedWidth() / 2, 0]
+        }),
+        scaleX: Animated.interpolate(this.props.expansionValue, {
+          inputRange: [0, 1],
+          outputRange: [this.props.sideSize / this.getExpandedWidth(), 1],
+          extrapolate: Animated.Extrapolate.CLAMP
+        }),
+        scaleY: Animated.interpolate(this.props.expansionValue, {
+          inputRange: [0, 1],
+          outputRange: [this.props.sideSize / this.props.expandedSideSize, 1],
+          extrapolate: Animated.Extrapolate.CLAMP
+        })        
+      }
+    ],
+    backgroundColor: 'red',
+    overflow: 'hidden',
+    marginLeft: this.props.index > 0 ? this.props.margin : 0,
+    borderRadius: Animated.interpolate(this.props.expansionValue, {
       inputRange: [0, 1],
       outputRange: [
-        this.props.sideSize,
-        this.props.expandedSideSize
-      ],
-      extrapolate: Animated.Extrapolate.CLAMP
-
+        8,
+        16
+      ]
     })
   }
 
-  imgWrapperStyles = StyleSheet.create({
-    firstImgWrapper: {
-      borderRadius: 4,
-      overflow: 'hidden',
-      marginLeft: 0
-    },
-    imgWrapper: {
-      borderRadius: 4,
-      overflow: 'hidden',
-      marginLeft: this.props.margin
-    }
-  })
-
   render() {
-    const { props, imgWrapperStyles } = this
+    const { props, imgWrapperStyle } = this
     const { index, image } = props
     return (
-      <Animated.View style={index === 0 ? imgWrapperStyles.firstImgWrapper : imgWrapperStyles.imgWrapper}>
+      <Animated.View style={imgWrapperStyle} shouldRasterizeIOS needsOffscreenAlphaCompositing>
         <TouchableWithoutFeedback onPress={this.onSelect}>
-          <Animated.Image  source={{ uri: image.uri }} style={this.imageStyle} />
+          <Animated.Image style={[this.imageStyle, { resizeMode: 'cover' }]} source={image}>
+          </Animated.Image>
         </TouchableWithoutFeedback>
       </Animated.View>
     )
