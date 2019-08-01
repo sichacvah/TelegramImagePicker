@@ -1,9 +1,8 @@
 // @ts-check
 import React from 'react'
 import Animated from 'react-native-reanimated'
-import { StyleSheet, TouchableWithoutFeedback, Image } from 'react-native'
+import { TouchableWithoutFeedback } from 'react-native'
 import * as core from './core'
-
 
 /**
  * @typedef {import('./core').Image} ImageType 
@@ -15,7 +14,8 @@ import * as core from './core'
  * @property {number} sideSize
  * @property {number} expandedSideSize
  * @property {number} containerSize
- * @property {ImageType} image  
+ * @property {ImageType} image
+ * @property {number} offset
  */
 
 
@@ -29,9 +29,8 @@ export default class ImageItem extends React.PureComponent {
     return core.getExpandedWidth(this.props.expandedSideSize, this.props.containerSize)(this.props.image)
   }
 
+  /** @type {any} */
   imageStyle = {
-    // alignSelf: 'flex-start',
-    backgroundColor: this.props.image.color,
     width:  this.getExpandedWidth(),
     height: this.props.expandedSideSize,
     transform: [
@@ -48,28 +47,11 @@ export default class ImageItem extends React.PureComponent {
         })
       }
     ]
-    // aspectRatio: this.props.expandedSideSize / this.getExpandedWidth()
-
-    // width: Animated.interpolate(this.props.expansionValue, {
-    //   inputRange: [0, 1],
-    //   outputRange: [this.props.sideSize, this.getExpandedWidth()],
-    //   extrapolate: Animated.Extrapolate.CLAMP
-    // }),
-    // height: Animated.interpolate(this.props.expansionValue, {
-    //   inputRange: [0, 1],
-    //   outputRange: [
-    //     this.props.sideSize,
-    //     this.props.expandedSideSize
-    //   ],
-    //   extrapolate: Animated.Extrapolate.CLAMP
-    // }),
-    // aspectRatio: Animated.interpolate(this.props.expansionValue, {
-    //   inputRange: [0, 1],
-    //   outputRange: [1, this.getExpandedWidth() /],
-    //   extrapolate: Animated.Extrapolate.CLAMP
-    // })
   }
 
+  /**
+   * @type {any}
+   */
   imgWrapperStyle = {
     transform: [
       {
@@ -89,7 +71,7 @@ export default class ImageItem extends React.PureComponent {
         })        
       }
     ],
-    backgroundColor: 'red',
+    backgroundColor: 'black',
     overflow: 'hidden',
     marginLeft: this.props.index > 0 ? this.props.margin : 0,
     borderRadius: Animated.interpolate(this.props.expansionValue, {
@@ -103,7 +85,7 @@ export default class ImageItem extends React.PureComponent {
 
   render() {
     const { props, imgWrapperStyle } = this
-    const { index, image } = props
+    const { image } = props
     return (
       <Animated.View style={imgWrapperStyle} shouldRasterizeIOS needsOffscreenAlphaCompositing>
         <TouchableWithoutFeedback onPress={this.onSelect}>

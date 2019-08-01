@@ -1,22 +1,17 @@
 // @ts-check
 import React from 'react'
 import {
-  StyleSheet,
-  View,
-  CameraRoll,
-  Image as ImageCmp,
-  TouchableOpacity,
-  Dimensions
+  StyleSheet
 } from 'react-native'
-import * as helpers from '../ReanimatedHelpers'
 import * as core from './core'
 import Animated from 'react-native-reanimated'
 import { PanGestureHandler, State as GestureState } from 'react-native-gesture-handler'
 import ImageItem from './ImageItem'
-import { interaction, SelectionStates } from '../ReanimatedHelpers/interaction'
-
+import  * as helpers from '../interaction'
+const { SelectionStates, interaction } = helpers
 
 /**
+ * @typedef {import('../interaction').SelectionState} SelectionState
  * @typedef {import('./core').Image} Image
  * 
  * @typedef {Object} ImagePickerProps
@@ -25,7 +20,7 @@ import { interaction, SelectionStates } from '../ReanimatedHelpers/interaction'
  * @property {number} expandedCellSideSize
  * @property {number} cellMargin 
  * @property {number} containerPadding
- * @property {() => {}=} onEndReaching
+ * @property {() => void=} onEndReaching
  */
 
 
@@ -40,11 +35,6 @@ const gestureHandler = helpers.eventHandler({
 })
 
 
-
-/**
- * @type {Animated.Value<helpers.ExpandedState>}
- */
-const expanded = new Animated.Value(helpers.EXPANDED_STATES.IDLE)
 
 /**
  * @type {Animated.Value<number>}
@@ -81,6 +71,7 @@ class ImagePicker extends React.PureComponent {
     this.expandedPickerWidthValue = new Animated.Value(this.getPickerExpandedWidth())
     this.containerWidthValue = new Animated.Value(this.getContainerWidth())
     this.progress = new Animated.Value(0)
+    /** @type {Animated.Value<SelectionState>} */
     this.selectionState = new Animated.Value(0)
     this.selected = false
     this.positionOfSelectedImage = new Animated.Value(0)
@@ -134,19 +125,15 @@ class ImagePicker extends React.PureComponent {
     const { props } = this
     const { cellMargin, expandedCellSideSize, containerPadding, cellSideSize, images } = props
     const containerSize = core.getContainerWidth(containerPadding)
-    const collapsingWidth = Math.min(
-      -core.getPickerWidth(cellMargin, cellSideSize, images.slice(0, indx)) - cellSideSize / 2 + containerSize / 2 - cellMargin,
-      0
-    )
-    const expandedWidth = core.getExpandedWidth(expandedCellSideSize, containerSize)(images[indx])
-    const expandingWidth = Math.min(
-      -core.getPickerExpandedWidth(cellMargin, expandedCellSideSize, containerSize, images.slice(0, indx)) - expandedWidth / 2 + containerSize / 2 - cellMargin,
-      0
-    )
+ 
     if (this.selected) {
-      collapsingTarget.setValue(collapsingWidth)
+      collapsingTarget.setValue(
+        core.getCollapsingTarget(cellMargin, cellSideSize, images, indx, containerSize)
+      )
     } else {
-      expandingTarget.setValue(expandingWidth)
+      expandingTarget.setValue(
+        core.getExpandingTarget(cellMargin, expandedCellSideSize, images, indx, containerSize)
+      )
     }
     this.needToAnimate = true
   }
@@ -155,7 +142,7 @@ class ImagePicker extends React.PureComponent {
     if (!this.needToAnimate) return
     if (!this.selected) {
       this.selected = true
-      this.selectionState.setValue(1)
+      this.selectionState.setValue(SelectionStates.Expanding)
       this.needToAnimate = false
     }
   }
@@ -164,28 +151,22 @@ class ImagePicker extends React.PureComponent {
     if (!this.needToAnimate) return
     if (this.selected) {
       this.selected = false
-      this.selectionState.setValue(3)
+      this.selectionState.setValue(SelectionStates.Collapsing)
       this.needToAnimate = false
     }
   }
 
   render() {
-    const { props, getContainerWidth, onEndReached, translateX, selectionState } = this
+    const { props, getContainerWidth, onEndReached, translateX, selectionState, finalPickerWidth, expand, collapse } = this
     const { images, cellMargin, expandedCellSideSize, cellSideSize, containerPadding } = props
-    const { images: preparedImages } = images.reduce((acc, image) => {
-      const prevOffset = acc.offset
-      const offset = prevOffset + cellSideSize - core.getExpandedWidth(expandedCellSideSize, core.getContainerWidth(containerPadding))(image)
-      return {
-        images: acc.images.concat([{...image, offset: prevOffset }]),
-        offset
-      }
-    }, { images: [], offset: 0 })
+    const preparedImages = core.prepareImages(cellSideSize, expandedCellSideSize, containerPadding, images)
+
     return (
       <Animated.View>
         <PanGestureHandler
           failOffsetX={getContainerWidth()}
           {...gestureHandler}>
-            <Animated.View shouldRasterizeIOS style={[styles.picker, { width: this.finalPickerWidth, marginHorizontal: props.containerPadding }, { transform: [ { translateX: translateX } ] }]}>
+            <Animated.View shouldRasterizeIOS style={[styles.picker, { width: finalPickerWidth, marginHorizontal: props.containerPadding }, { transform: [ { translateX: translateX } ] }]}>
               {preparedImages.map((image, idx) => {
                 return (
                   <ImageItem
@@ -204,9 +185,8 @@ class ImagePicker extends React.PureComponent {
             </Animated.View>
         </PanGestureHandler>
         <Animated.Code exec={Animated.onChange(translateX, Animated.call([translateX, selectionState], onEndReached))}/>
-        <Animated.Code exec={Animated.onChange(expandingTarget, Animated.call([expandingTarget, selectionState], this.expand))} />
-        <Animated.Code exec={Animated.onChange(collapsingTarget, Animated.call([collapsingTarget, selectionState], this.collapse))} />
-
+        <Animated.Code exec={Animated.onChange(expandingTarget, Animated.call([expandingTarget, selectionState], expand))} />
+        <Animated.Code exec={Animated.onChange(collapsingTarget, Animated.call([collapsingTarget, selectionState], collapse))} />
       </Animated.View>
     )
   }

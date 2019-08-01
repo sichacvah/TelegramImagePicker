@@ -1,4 +1,5 @@
 // @ts-check
+
 import { State as GestureState } from 'react-native-gesture-handler'
 import { Platform } from 'react-native'
 import Animated, { Easing } from 'react-native-reanimated'
@@ -29,15 +30,17 @@ const {
   min,
   neq,
   timing,
-  interpolate
+  interpolate,
+  event
 } = Animated
 
+const deceleration = Platform.OS === 'ios' ? 0.998 : 0.985
 
 /**
- * 
- * @param {Animated.Clock} clock 
- * @param {Animated.Value} position 
- * @param {Animated.Value} velocity 
+ * Helper for decay animation
+ * @param {Animated.Clock} clock
+ * @param {Animated.Value<number>} position
+ * @param {Animated.Value<number>} velocity
  */
 export function runDecay(clock, position, velocity) {
   const state = {
@@ -46,7 +49,7 @@ export function runDecay(clock, position, velocity) {
     position: new Value(0),
     time:     new Value(0)
   }
-  const config = { deceleration: Platform.OS === 'ios' ? 0.998 : 0.985 }
+  const config = { deceleration }
 
   return block([
     cond(
@@ -67,18 +70,16 @@ export function runDecay(clock, position, velocity) {
   ])
 }
 
-
 /**
- * 
- * @param {Animated.Clock} clock 
+ * Helper for timing animation
+ * @param {Animated.Clock} clock
  * @param {Animated.TimingState} state
  * @param {Animated.Value<number>} start
  * @param {Animated.Value<number>} dest
- * @param {Animated.Value<number>} toValue 
- * @param {number=} duration
+ * @param {Animated.Value<number>} toValue
+ * @param {number=} [duration=300]
  */
 export function runTiming(clock, state, start, dest, toValue, duration=300) {
-
   const config = {
     toValue,
     duration,
@@ -105,18 +106,18 @@ export function runTiming(clock, state, start, dest, toValue, duration=300) {
 }
 
 /**
- * 
- * @param {Animated.Clock} clock 
- * @param {Animated.Value<number>} position 
- * @param {Animated.Node<number>} value 
+ * Helper for spring animation
+ * @param {Animated.Clock} clock
+ * @param {Animated.Value<number>} position
+ * @param {Animated.Node<number>} destination
  */
-export function runSpring(clock, position, value) {
+export function runSpring(clock, position, destination) {
   const config = {
     damping: 28,
     mass: 0.3,
     stiffness: 188.296,
     overshootClamping: false,
-    toValue: value,
+    toValue: destination,
     restSpeedThreshold: 0.001,
     restDisplacementThreshold: 0.001,
   }
@@ -140,9 +141,14 @@ export function runSpring(clock, position, value) {
   ])
 }
 
+
+/** @type {0} */
 const Collapsed   = 0
+/** @type {1} */
 const Expanding   = 1
+/** @type {2} */
 const Expanded    = 2
+/** @type {3} */
 const Collapsing  = 3
 export const SelectionStates = {
   Collapsed,
@@ -150,6 +156,7 @@ export const SelectionStates = {
   Expanded,
   Collapsing
 }
+
 /**
  * @typedef {Object} Gesture
  * @property {Animated.Value<number>} Gesture.translation
@@ -175,6 +182,7 @@ export const SelectionStates = {
  * @property {Animated.Value<number>} Selection.expandingTarget
  * @property {Animated.Value<number>} Selection.progress
  */
+
 
 /**
  * 
@@ -204,6 +212,7 @@ const stopClocks = ({ decay, span, spring, timing }) => block([
   stopClock(spring),
   stopClock(timing)
 ])
+
 
 /**
  * 
@@ -244,6 +253,7 @@ export function friction(value, maxFriction = 5, maxValue = 100) {
     )
   )
 }
+
 
 /**
  * @param {Animated.Value<number>} start
@@ -308,6 +318,7 @@ export function drag(start, position, { translation }, { containerWidth, width: 
  */
 const dragAndRelease = (position, gesture, picker, rightPoint, clocks, selection) => {
   const start = new Value(0)
+
   return cond(
     eq(gesture.state, GestureState.ACTIVE),
     [
@@ -339,6 +350,7 @@ const dragAndRelease = (position, gesture, picker, rightPoint, clocks, selection
   )
 }
 
+
 /**
  * @param {Animated.Clock} clock
  * @param {Picker} picker
@@ -358,7 +370,6 @@ export const runSelection = (clock, picker, selection, prevPosition, position) =
   }
 
   return block([
-    
     cond(
       eq(selection.state, Expanding),
       [
@@ -396,48 +407,6 @@ export const runSelection = (clock, picker, selection, prevPosition, position) =
     state.position
   ])
 }
-
-
-/**
- * @param {Animated.Clock} clock
- * @param {Picker} picker
- * @param {Selection} selection
- * @param {Animated.Value<number>} position
- */
-export const movePicker = (clock, picker, selection, position) => {
-  const state = {
-    finished: new Value(0),
-    position: new Value(0),
-    time: new Value(0),
-    frameTime: new Value(0)
-  }
-  const toValue = new Value(0)
-
-  const config = {
-    toValue,
-    duration: 200,
-    easing: Easing.linear
-  }
-
-  return block([
-    cond(
-      clockRunning(clock),
-      0,
-      [
-        set(state.position, position),
-        set(toValue, selection.expandingTarget),
-        set(state.finished, 0),
-        set(state.time, 0),
-        set(state.frameTime, 0),
-        startClock(clock)
-      ]
-    ),
-    timing(clock, state, config),
-    cond(state.finished, stopClock(clock)),
-    state.position
-  ]) 
-}
-
 
 /**
  * @param {Gesture} gesture
@@ -493,4 +462,19 @@ export const interaction = (gesture, picker, selection) => {
     set(prevState, selection.state),
     position
   ])
+}
+
+
+/**
+ * @param {Object} nativeEvent
+ */
+export function eventHandler(nativeEvent) {
+  const handler = event([{
+    nativeEvent
+  }])
+
+  return {
+    onHandlerStateChange: handler,
+    onGestureEvent: handler
+  }
 }

@@ -30,7 +30,7 @@ let state = {
  * @param {string=} after
  * @return {Promise<Image[]>}
  */
-export const fetchPhotos = (assetType=state.assetType, pageSize = 40, after) => {
+export const fetch = (assetType=state.assetType, pageSize = 40, after) => {
   state.pageSize = pageSize
   state.after = after
   state.assetType = assetType

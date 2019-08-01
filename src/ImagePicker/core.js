@@ -57,3 +57,54 @@ export const getPickerExpandedWidth = (margin, expandedHeight, containerWidth, i
     return overalwidth + width + (indx > 0 ? margin : 0)
   }, 0)
 }
+
+
+/**
+ * @param {number} cellSideSize
+ * @param {number} expandedCellSideSize
+ * @param {number} containerPadding
+ * @param {Image[]} images
+ */
+export const prepareImages = (cellSideSize, expandedCellSideSize, containerPadding, images) => {
+  const { images: preparedImages } = images.reduce((acc, image) => {
+    const prevOffset = acc.offset
+    const offset = prevOffset + cellSideSize - getExpandedWidth(expandedCellSideSize, getContainerWidth(containerPadding))(image)
+    return {
+      images: acc.images.concat([{...image, offset: prevOffset }]),
+      offset
+    }
+  }, { images: [], offset: 0 })
+  return preparedImages
+}
+
+/**
+ * 
+ * @param {number} cellMargin 
+ * @param {number} cellSideSize 
+ * @param {Image[]} images 
+ * @param {number} index 
+ * @param {number} containerSize 
+ */
+export const getCollapsingTarget = (cellMargin, cellSideSize, images, index, containerSize) => {
+  return Math.min(
+    -getPickerWidth(cellMargin, cellSideSize, images.slice(0, index)) - cellSideSize / 2 + containerSize / 2 - cellMargin,
+    0
+  )
+}
+
+
+/**
+ * 
+ * @param {number} cellMargin 
+ * @param {number} expandedCellSideSize 
+ * @param {Image[]} images 
+ * @param {number} index 
+ * @param {number} containerSize 
+ */
+export const getExpandingTarget = (cellMargin, expandedCellSideSize, images, index, containerSize) => {
+  const expandedWidth = getExpandedWidth(expandedCellSideSize, containerSize)(images[index])
+  return Math.min(
+    -getPickerExpandedWidth(cellMargin, expandedCellSideSize, containerSize, images.slice(0, index)) - expandedWidth / 2 + containerSize / 2 - cellMargin,
+    0
+  )
+}
