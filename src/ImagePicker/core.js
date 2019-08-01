@@ -90,6 +90,12 @@ export const prepareImages = (cellSideSize, expandedCellSideSize, containerPaddi
  * @param {number} containerSize 
  */
 export const getCollapsingTarget = (cellMargin, cellSideSize, images, index, containerSize) => {
+  if (images.length - 1 === index) {
+    return Math.min(
+      -getPickerWidth(cellMargin, cellSideSize, images.slice(0, index)) - cellSideSize + containerSize - cellMargin,
+      0
+    )
+  }
   return Math.min(
     -getPickerWidth(cellMargin, cellSideSize, images.slice(0, index)) - cellSideSize / 2 + containerSize / 2 - cellMargin,
     0
@@ -107,6 +113,12 @@ export const getCollapsingTarget = (cellMargin, cellSideSize, images, index, con
  */
 export const getExpandingTarget = (cellMargin, expandedCellSideSize, images, index, containerSize) => {
   const expandedWidth = getExpandedWidth(expandedCellSideSize, containerSize)(images[index])
+  if (images.length - 1 === index) {
+    return Math.min(
+      -getPickerExpandedWidth(cellMargin, expandedCellSideSize, containerSize, images.slice(0, index)) - expandedWidth + containerSize - cellMargin,
+      0
+    )
+  }
   return Math.min(
     -getPickerExpandedWidth(cellMargin, expandedCellSideSize, containerSize, images.slice(0, index)) - expandedWidth / 2 + containerSize / 2 - cellMargin,
     0

@@ -39,8 +39,6 @@ class RadioButton extends React.PureComponent {
     position: 'absolute',
     top: 0,
     right: 0,
-    // top: Animated.add(this.props.topPoint, 4),
-    // right: Animated.add(this.props.rightPoint, 4),
     width: this.props.radius * 2,
     height: this.props.radius * 2,
     borderRadius: this.props.radius,
@@ -68,7 +66,8 @@ class RadioButton extends React.PureComponent {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'red'
+    backgroundColor: 'red',
+    padding: 2
   }
   /** @type {any} */
   text = {
@@ -174,7 +173,7 @@ export default class ImageItem extends React.PureComponent {
       inputRange: [0, 1],
       outputRange: [
         8,
-        16
+        10
       ]
     })
   }
