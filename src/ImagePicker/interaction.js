@@ -430,9 +430,12 @@ const snapTo = (clock, picker, selection, prevPosition, position) => {
     time: new Value(0),
     frameTime: new Value(0)
   }
-  return block([
+  return cond(eq(selection.snapTarget, 1), 0, [
+    cond(clockRunning(clock), 0, [
+      set(prevPosition, position),
+    ]),
     set(position, runTiming(clock, state, prevPosition, selection.snapTarget, toValue)),
-    cond(state.finished, set(selection.state, Expanded)),
+    cond(state.finished, [set(selection.state, Expanded), set(selection.snapTarget, 1)]),
     position
   ])
 }
@@ -453,7 +456,17 @@ export const interaction = (gesture, picker, selection) => {
   return block([
     cond(
       eq(selection.state, Snapping),
-      snapTo(clocks.timing, picker, selection, prevPosition, position)
+      [
+        cond(
+          neq(prevState, selection.state),
+          [
+            stopClock(clocks.spring),
+            stopClock(clocks.decay),
+            set(gesture.velocityX, 0),
+          ]
+        ),
+        snapTo(clocks.timing, picker, selection, prevPosition, position)
+      ]
     ),
     cond(
       or(

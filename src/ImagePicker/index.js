@@ -48,7 +48,7 @@ const collapsingTarget = new Animated.Value(1)
 /**
  * @type {Animated.Value<number>}
  */
-const snapTarget = new Animated.Value(0)
+const snapTarget = new Animated.Value(1)
 
 
 /**
@@ -165,7 +165,6 @@ class ImagePicker extends React.PureComponent {
     const { cellMargin, expandedCellSideSize, containerPadding, cellSideSize, images } = props
     const containerSize = core.getContainerWidth(containerPadding)
     this.needToAnimate = true
-    
     if (this.state.selectedOrder.length === 0) {
       expandingTarget.setValue(
         core.getExpandingTarget(cellMargin, expandedCellSideSize, images, indx, containerSize)
@@ -192,7 +191,7 @@ class ImagePicker extends React.PureComponent {
     this.needToAnimate = false
   }
 
-  snapTo = () => {
+  snapTo = ([target]) => {
     if (!this.needToAnimate) return
     this.selectionState.setValue(SelectionStates.Snapping)
     this.needToAnimate = false
