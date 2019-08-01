@@ -79,7 +79,7 @@ export function runDecay(clock, position, velocity) {
  * @param {Animated.Value<number>} toValue
  * @param {number=} [duration=300]
  */
-export function runTiming(clock, state, start, dest, toValue, duration=3000) {
+export function runTiming(clock, state, start, dest, toValue, duration=300) {
   const config = {
     toValue,
     duration,
