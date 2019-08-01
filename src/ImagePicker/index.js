@@ -7,11 +7,11 @@ import * as core from './core'
 import Animated from 'react-native-reanimated'
 import { PanGestureHandler, State as GestureState } from 'react-native-gesture-handler'
 import ImageItem from './ImageItem'
-import  * as helpers from '../interaction'
+import  * as helpers from './interaction'
 const { SelectionStates, interaction } = helpers
 
 /**
- * @typedef {import('../interaction').SelectionState} SelectionState
+ * @typedef {import('./interaction').SelectionState} SelectionState
  * @typedef {import('./core').Image} Image
  * 
  * @typedef {Object} ImagePickerProps
@@ -45,6 +45,10 @@ const expandingTarget = new Animated.Value(1)
  * @type {Animated.Value<number>}
  */
 const collapsingTarget = new Animated.Value(1)
+/**
+ * @type {Animated.Value<number>}
+ */
+const snapTarget = new Animated.Value(0)
 
 
 /**
@@ -65,6 +69,31 @@ class ImagePicker extends React.PureComponent {
     this.props.images
   )
 
+  /**
+   * @param {number} index
+   */
+  updateSelectedState = (index) => {
+    const { state, setState } = this
+    const { selectedOrder, selected } = state
+    if (selected[index]) {
+      this.setState({
+        selected: {
+          ...selected,
+          [index]: false
+        },
+        selectedOrder: selectedOrder.filter(i => i !== index)
+      })
+    } else {
+      this.setState({
+        selected: {
+          ...selected,
+          [index]: true
+        },
+        selectedOrder: selectedOrder.concat([index])
+      })
+    }
+  }
+
   constructor(props) {
     super(props)
     this.pickerWidthValue = new Animated.Value(this.getPickerWidth())
@@ -73,6 +102,10 @@ class ImagePicker extends React.PureComponent {
     this.progress = new Animated.Value(0)
     /** @type {Animated.Value<SelectionState>} */
     this.selectionState = new Animated.Value(0)
+    this.state = {
+      selectedOrder: [],
+      selected: {}
+    }
     this.selected = false
     this.positionOfSelectedImage = new Animated.Value(0)
     this.finalPickerWidth = Animated.cond(
@@ -85,8 +118,12 @@ class ImagePicker extends React.PureComponent {
       { width: this.pickerWidthValue,
         expandedWidth: this.expandedPickerWidthValue,
         containerWidth: new Animated.Value(core.getContainerWidth(this.props.containerPadding)) },
-      { state: this.selectionState, expandingTarget, collapsingTarget, progress: this.progress }
+      { state: this.selectionState, expandingTarget, collapsingTarget, progress: this.progress, snapTarget }
     )
+    this.translateY = Animated.interpolate(this.progress, {
+      inputRange: [0, 1],
+      outputRange: [0, this.props.expandedCellSideSize / 2 - this.props.cellSideSize / 2]
+    })
   }
 
   /**
@@ -117,6 +154,8 @@ class ImagePicker extends React.PureComponent {
     }
   }
 
+  
+
   needToAnimate = false
   /**
    * @param {number} indx
@@ -125,40 +164,50 @@ class ImagePicker extends React.PureComponent {
     const { props } = this
     const { cellMargin, expandedCellSideSize, containerPadding, cellSideSize, images } = props
     const containerSize = core.getContainerWidth(containerPadding)
- 
-    if (this.selected) {
-      collapsingTarget.setValue(
-        core.getCollapsingTarget(cellMargin, cellSideSize, images, indx, containerSize)
-      )
-    } else {
+    this.needToAnimate = true
+    
+    if (this.state.selectedOrder.length === 0) {
       expandingTarget.setValue(
         core.getExpandingTarget(cellMargin, expandedCellSideSize, images, indx, containerSize)
       )
+      this.updateSelectedState(indx)
+      return
     }
-    this.needToAnimate = true
+    if (this.state.selectedOrder.length === 1 && this.state.selected[indx]) {
+      collapsingTarget.setValue(
+        core.getCollapsingTarget(cellMargin, cellSideSize, images, indx, containerSize)
+      )
+      this.updateSelectedState(indx)
+      return
+    }
+    snapTarget.setValue(
+      core.getExpandingTarget(cellMargin, expandedCellSideSize, images, indx, containerSize)
+    )
+    this.updateSelectedState(indx)
   }
 
   expand = () => {
     if (!this.needToAnimate) return
-    if (!this.selected) {
-      this.selected = true
-      this.selectionState.setValue(SelectionStates.Expanding)
-      this.needToAnimate = false
-    }
+    this.selectionState.setValue(SelectionStates.Expanding)
+    this.needToAnimate = false
+  }
+
+  snapTo = () => {
+    if (!this.needToAnimate) return
+    this.selectionState.setValue(SelectionStates.Snapping)
+    this.needToAnimate = false
   }
 
   collapse = () => {
     if (!this.needToAnimate) return
-    if (this.selected) {
-      this.selected = false
-      this.selectionState.setValue(SelectionStates.Collapsing)
-      this.needToAnimate = false
-    }
+    this.selectionState.setValue(SelectionStates.Collapsing)
+    this.needToAnimate = false
   }
 
   render() {
-    const { props, getContainerWidth, onEndReached, translateX, selectionState, finalPickerWidth, expand, collapse } = this
+    const { props, getContainerWidth, onEndReached, translateX, selectionState, finalPickerWidth, expand, collapse, translateY, state, snapTo } = this
     const { images, cellMargin, expandedCellSideSize, cellSideSize, containerPadding } = props
+    const { selected, selectedOrder } = state
     const preparedImages = core.prepareImages(cellSideSize, expandedCellSideSize, containerPadding, images)
 
     return (
@@ -166,10 +215,12 @@ class ImagePicker extends React.PureComponent {
         <PanGestureHandler
           failOffsetX={getContainerWidth()}
           {...gestureHandler}>
-            <Animated.View shouldRasterizeIOS style={[styles.picker, { width: finalPickerWidth, marginHorizontal: props.containerPadding }, { transform: [ { translateX: translateX } ] }]}>
+            <Animated.View shouldRasterizeIOS style={[styles.picker, { width: finalPickerWidth, marginHorizontal: props.containerPadding }, { transform: [ { translateX, translateY } ] }]}>
               {preparedImages.map((image, idx) => {
                 return (
                   <ImageItem
+                    selected={selected[idx]}
+                    selectedIndex={selected[idx] ? selectedOrder.findIndex(i => i === idx) + 1 : 0}
                     key={String(idx)}
                     onSelect={this.onSelect}
                     offset={image.offset}
@@ -187,6 +238,7 @@ class ImagePicker extends React.PureComponent {
         <Animated.Code exec={Animated.onChange(translateX, Animated.call([translateX, selectionState], onEndReached))}/>
         <Animated.Code exec={Animated.onChange(expandingTarget, Animated.call([expandingTarget, selectionState], expand))} />
         <Animated.Code exec={Animated.onChange(collapsingTarget, Animated.call([collapsingTarget, selectionState], collapse))} />
+        <Animated.Code exec={Animated.onChange(snapTarget, Animated.call([snapTarget, selectionState], snapTo))} />
       </Animated.View>
     )
   }
@@ -198,7 +250,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     justifyContent: 'flex-start',
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'flex-start'
   },
   container: {
     flex: 1,

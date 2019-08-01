@@ -26,15 +26,15 @@ export default class App extends React.PureComponent {
     images: []
   }
   componentDidMount() {
-    ImageService.fetch().then(images => this.setState({images}))
-    // Promise.resolve(getRandom20Colors()).then(images => this.setState({ images }))
+    // ImageService.fetchPhotos().then(images => this.setState({images}))
+    Promise.resolve(getRandom20Colors()).then(images => this.setState({ images }))
   }
 
   loadMore = () => {
-    // Promise.resolve(getRandom20Colors()).then(images => this.setState({ images: this.state.images.concat(images) }))
-    ImageService.next().then(images => {
-      this.setState({ images: this.state.images.concat(images) })
-    })
+    Promise.resolve(getRandom20Colors()).then(images => this.setState({ images: this.state.images.concat(images) }))
+    // ImageService.next().then(images => {
+    //   this.setState({ images: this.state.images.concat(images) })
+    // })
   }
   render() {
     return (

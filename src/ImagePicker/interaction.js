@@ -150,11 +150,14 @@ const Expanding   = 1
 const Expanded    = 2
 /** @type {3} */
 const Collapsing  = 3
+/** @type {4} */
+const Snapping = 4
 export const SelectionStates = {
   Collapsed,
   Expanding,
   Expanded,
-  Collapsing
+  Collapsing,
+  Snapping
 }
 
 /**
@@ -174,13 +177,16 @@ export const SelectionStates = {
  * @typedef {2} Expanded
  * @typedef {3} Collapsing
  * 
- * @typedef {Collapsed | Expanding | Expanded | Collapsing} SelectionState
+ * @typedef {4} Snapping
+ * 
+ * @typedef {Collapsed | Expanding | Expanded | Collapsing | Snapping} SelectionState
  * 
  * @typedef {Object} Selection
  * @property {Animated.Value<SelectionState>} Selection.state
  * @property {Animated.Value<number>} Selection.collapsingTarget
  * @property {Animated.Value<number>} Selection.expandingTarget
  * @property {Animated.Value<number>} Selection.progress
+ * @property {Animated.Value<number>} Selection.snapTarget
  */
 
 
@@ -408,6 +414,28 @@ export const runSelection = (clock, picker, selection, prevPosition, position) =
   ])
 }
 
+
+/**
+ * @param {Animated.Clock} clock
+ * @param {Picker} picker
+ * @param {Selection} selection 
+ * @param {Animated.Value<number>} prevPosition
+ * @param {Animated.Value<number>} position
+ */
+const snapTo = (clock, picker, selection, prevPosition, position) => {
+  const toValue = new Value(0)
+  const state = {
+    finished: new Value(0),
+    position: new Value(0),
+    time: new Value(0),
+    frameTime: new Value(0)
+  }
+  return block([
+    set(position, runTiming(clock, state, prevPosition, selection.snapTarget, toValue)),
+    cond(state.finished, set(selection.state, Expanded)),
+    position
+  ])
+}
 /**
  * @param {Gesture} gesture
  * @param {Picker} picker
@@ -423,6 +451,10 @@ export const interaction = (gesture, picker, selection) => {
   const dragging = dragAndRelease(position, gesture, picker, rightPoint, clocks, selection)
   const prevState = new Value(0)
   return block([
+    cond(
+      eq(selection.state, Snapping),
+      snapTo(clocks.timing, picker, selection, prevPosition, position)
+    ),
     cond(
       or(
         eq(selection.state, Expanding),
