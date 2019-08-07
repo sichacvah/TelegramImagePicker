@@ -448,6 +448,7 @@ export const interaction = (gesture, picker, selection) => {
   const clocks = initClocks()
   const position = new Value(0)
   const prevPosition = new Value(0)
+  const dest = new Value(0)
 
 
   const rightPoint = getrightPoint(picker, selection)
@@ -483,20 +484,34 @@ export const interaction = (gesture, picker, selection) => {
           ]
         ),
         runSelection(clocks.span, picker, selection, prevPosition, position),
-
+        
         cond(
           or(eq(selection.state, Expanded), eq(selection.state, Expanding)),
-          set(position, interpolate(selection.progress, {
-            inputRange: [0, 1],
-            outputRange: [prevPosition, selection.expandingTarget]
-          }))
+          [
+            cond(
+              lessThan(rightPoint, selection.expandingTarget),
+              set(dest, selection.expandingTarget),
+              set(dest, rightPoint)
+            ),
+            set(position, interpolate(selection.progress, {
+              inputRange: [0, 1],
+              outputRange: [prevPosition, dest]
+            }))
+          ]
         ),
         cond(
           or(eq(selection.state, Collapsed), eq(selection.state, Collapsing)),
-          set(position, interpolate(selection.progress, { 
-            inputRange: [0, 1],
-            outputRange: [selection.collapsingTarget, prevPosition]
-           }))
+          [
+            cond(
+              lessThan(rightPoint, selection.collapsingTarget),
+              set(dest, selection.collapsingTarget),
+              set(dest, rightPoint)
+            ),
+            set(position, interpolate(selection.progress, { 
+              inputRange: [0, 1],
+              outputRange: [dest, prevPosition]
+            }))
+          ]
         ),
       ],
       [

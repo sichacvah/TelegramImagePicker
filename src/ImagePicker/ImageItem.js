@@ -115,20 +115,6 @@ export default class ImageItem extends React.PureComponent {
   getExpandedWidth = () => {
     return core.getExpandedWidth(this.props.expandedSideSize, this.props.containerSize)(this.props.image)
   }
-
-  // /** @type {any} */
-  // imageStyle = {
-  //   resizeMode: 'cover',
-  //   width: Animated.interpolate(this.props.expansionValue, {
-  //     inputRange: [0, 1],
-  //     outputRange: [this.props.sideSize, this.getExpandedWidth()]
-  //   }),
-  //   height: Animated.interpolate(this.props.expansionValue, {
-  //     inputRange: [0, 1],
-  //     outputRange: [this.props.sideSize, this.props.expandedSideSize]
-  //   })
-  // }
-
   /**
    * @type {any}
    */
@@ -142,7 +128,7 @@ export default class ImageItem extends React.PureComponent {
       inputRange: [0, 1],
       outputRange: [this.props.sideSize, this.props.expandedSideSize]
     }),
-    backgroundColor: 'white',
+    backgroundColor: 'black',
     overflow: 'hidden',
     marginLeft: this.props.index > 0 ? this.props.margin : 0,
     borderRadius: Animated.interpolate(this.props.expansionValue, {
