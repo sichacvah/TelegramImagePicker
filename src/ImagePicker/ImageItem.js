@@ -1,11 +1,13 @@
 // @ts-check
 import React from 'react'
 import Animated from 'react-native-reanimated'
-import { TouchableWithoutFeedback, ImageBackground } from 'react-native'
+import { ImageBackground } from 'react-native'
 import * as core from './core'
+import { RectButton } from 'react-native-gesture-handler'
 
 import { View, Text } from 'react-native'
 
+const AnimatedImageBackground = Animated.createAnimatedComponent(ImageBackground)
 const {
   cond,
   debug,
@@ -37,21 +39,14 @@ class RadioButton extends React.PureComponent {
   /** @type {any} */
   style = {
     position: 'absolute',
-    top: 0,
-    right: 0,
+    top: this.props.topPoint,
+    right: Animated.sub(0, this.props.rightPoint),
     width: this.props.radius * 2,
     height: this.props.radius * 2,
     borderRadius: this.props.radius,
     borderWidth: 2,
     borderColor: 'white',
     overflow: 'hidden',
-    transform: [
-      {
-
-        translateY: this.props.topPoint,
-        translateX: this.props.rightPoint
-      }
-    ],
     shadowColor: "#000",
     shadowOffset: {
       width: 4,
@@ -66,7 +61,7 @@ class RadioButton extends React.PureComponent {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'red',
+    backgroundColor: '#007AFF',
     padding: 2
   }
   /** @type {any} */
@@ -78,11 +73,11 @@ class RadioButton extends React.PureComponent {
     const { props, style, inner, text } = this
     const { selected, index, onSelect } = props
     return (
-      <TouchableWithoutFeedback onPress={onSelect}>
         <Animated.View style={style}>
-          {selected ? <View style={inner}><Text style={text}>{index}</Text></View> : null}
+          <RectButton onPress={onSelect} style={{ flex: 1 }}>
+            {selected ? <View style={inner}><Text style={text}>{index}</Text></View> : null}
+          </RectButton>
         </Animated.View>
-      </TouchableWithoutFeedback>
     )
   }
 }
@@ -108,7 +103,6 @@ class RadioButton extends React.PureComponent {
  * @property {number} containerPadding
  */
 
-const AnimatedImageBackground = Animated.createAnimatedComponent(ImageBackground)
 
 /**
  * @extends {React.PureComponent<ImageItemProps>}
@@ -122,50 +116,32 @@ export default class ImageItem extends React.PureComponent {
     return core.getExpandedWidth(this.props.expandedSideSize, this.props.containerSize)(this.props.image)
   }
 
-  /** @type {any} */
-  imageStyle = {
-    width:  this.getExpandedWidth(),
-    height: this.props.expandedSideSize,
-    resizeMode: 'cover',
-
-    transform: [
-      {
-        scaleY: Animated.interpolate(this.props.expansionValue, {
-          inputRange: [0, 1],
-          outputRange: [this.props.expandedSideSize / this.props.sideSize, 1],
-          extrapolate: Animated.Extrapolate.CLAMP
-        }),
-        scaleX: Animated.interpolate(this.props.expansionValue, {
-          inputRange: [0, 1],
-          outputRange: [this.getExpandedWidth() / this.props.sideSize, 1],
-          extrapolate: Animated.Extrapolate.CLAMP
-        })
-      }
-    ]
-  }
+  // /** @type {any} */
+  // imageStyle = {
+  //   resizeMode: 'cover',
+  //   width: Animated.interpolate(this.props.expansionValue, {
+  //     inputRange: [0, 1],
+  //     outputRange: [this.props.sideSize, this.getExpandedWidth()]
+  //   }),
+  //   height: Animated.interpolate(this.props.expansionValue, {
+  //     inputRange: [0, 1],
+  //     outputRange: [this.props.sideSize, this.props.expandedSideSize]
+  //   })
+  // }
 
   /**
    * @type {any}
    */
   imgWrapperStyle = {
-    transform: [
-      {
-        translateX: Animated.interpolate(this.props.expansionValue, {
-          inputRange: [0, 1],
-          outputRange: [this.props.offset + this.props.sideSize / 2 - this.getExpandedWidth() / 2, 0]
-        }),
-        scaleX: Animated.interpolate(this.props.expansionValue, {
-          inputRange: [0, 1],
-          outputRange: [this.props.sideSize / this.getExpandedWidth(), 1],
-          extrapolate: Animated.Extrapolate.CLAMP
-        }),
-        scaleY: Animated.interpolate(this.props.expansionValue, {
-          inputRange: [0, 1],
-          outputRange: [this.props.sideSize / this.props.expandedSideSize, 1],
-          extrapolate: Animated.Extrapolate.CLAMP
-        })        
-      }
-    ],
+    resizeMode: 'cover',
+    width: Animated.interpolate(this.props.expansionValue, {
+      inputRange: [0, 1],
+      outputRange: [this.props.sideSize, this.getExpandedWidth()]
+    }),
+    height: Animated.interpolate(this.props.expansionValue, {
+      inputRange: [0, 1],
+      outputRange: [this.props.sideSize, this.props.expandedSideSize]
+    }),
     backgroundColor: 'white',
     overflow: 'hidden',
     marginLeft: this.props.index > 0 ? this.props.margin : 0,
@@ -173,14 +149,14 @@ export default class ImageItem extends React.PureComponent {
       inputRange: [0, 1],
       outputRange: [
         8,
-        10
+        12
       ]
     })
   }
 
   _defaultRightPoint = Animated.interpolate(this.props.expansionValue, {
     inputRange: [0, 1],
-    outputRange: [this.props.offset + this.props.sideSize - this.getExpandedWidth() - this.radioButtonPadding, -this.radioButtonPadding]
+    outputRange: [-this.radioButtonPadding, -this.radioButtonPadding]
   })
 
   leftBoundary = 0
@@ -197,7 +173,7 @@ export default class ImageItem extends React.PureComponent {
   positionOfLeftBound = Animated.interpolate(this.props.expansionValue, {
     inputRange: [0, 1],
     outputRange: [
-      add(this.props.position, (this.props.sideSize + this.props.margin) * this.props.index),
+      add(this.props.position, (this.props.sideSize + this.props.margin) * (this.props.index )),
       add(this.props.leftOffset, this.props.position)
     ]
   })
@@ -230,18 +206,14 @@ export default class ImageItem extends React.PureComponent {
   ])
   getTopPoint = () => Animated.interpolate(this.props.expansionValue, {
     inputRange: [0, 1],
-    outputRange: [(this.props.expandedSideSize - this.props.sideSize) / 2 + this.radioButtonPadding, this.radioButtonPadding]
+    outputRange: [this.radioButtonPadding, this.radioButtonPadding]
   })
 
   render() {
     const { props, imgWrapperStyle, rightPoint, getTopPoint, onSelect } = this
-    const { image, index, selected, selectedIndex} = props
+    const { image, selected, selectedIndex} = props
     return (
-      <Animated.View>
-        <Animated.View style={imgWrapperStyle} shouldRasterizeIOS needsOffscreenAlphaCompositing>
-          <AnimatedImageBackground style={this.imageStyle} source={image} >
-          </AnimatedImageBackground>
-        </Animated.View>
+      <AnimatedImageBackground style={imgWrapperStyle} source={image}>
         <RadioButton 
           topPoint={getTopPoint()}
           rightPoint={rightPoint}
@@ -249,7 +221,7 @@ export default class ImageItem extends React.PureComponent {
           radius={this.radius}
           selected={selected}
           onSelect={onSelect} />
-      </Animated.View>
+      </AnimatedImageBackground>
     )
   }
 }

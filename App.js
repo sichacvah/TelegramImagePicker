@@ -16,7 +16,7 @@ function getRandomColor() {
 
 function getRandom20Colors() {
   let colors = []
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 90; i++) {
     colors.push({ color: getRandomColor(), uri: `https://loremflickr.com/${i % 2 === 0 ? 300 : 1000}/${500}`, width: i % 2 === 0 ? 300 : 1000, height: 500 })
   }
   return colors

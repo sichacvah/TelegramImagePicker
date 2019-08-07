@@ -212,9 +212,8 @@ class ImagePicker extends React.PureComponent {
     return (
       <Animated.View>
         <PanGestureHandler
-          failOffsetX={getContainerWidth()}
           {...gestureHandler}>
-            <Animated.View shouldRasterizeIOS style={[styles.picker, { width: finalPickerWidth, marginHorizontal: props.containerPadding }, { transform: [ { translateX, translateY } ] }]}>
+            <Animated.View style={[styles.picker, { width: finalPickerWidth, marginHorizontal: props.containerPadding, left: translateX, top: translateY }]}>
               {preparedImages.map((image, idx) => {
                 return (
                   <ImageItem
